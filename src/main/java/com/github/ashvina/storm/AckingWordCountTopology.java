@@ -22,7 +22,7 @@ public class AckingWordCountTopology {
     WordCountTopologyHelper helper = new WordCountTopologyHelper(args);
 
     TopologyBuilder builder = new TopologyBuilder();
-    builder.setSpout("spout", new AckingStormRandomSentenceSpout(), helper.spouts);
+    builder.setSpout("spout", new AckingRandomSentenceSpout(), helper.spouts);
     builder.setBolt("split", new SplitSentence(), helper.wordBolts).shuffleGrouping("spout");
     builder.setBolt("count", new WordCount(), helper.countBolts)
         .fieldsGrouping("split", new Fields(WordCountTopologyHelper.FIELD_WORD));
@@ -33,7 +33,7 @@ public class AckingWordCountTopology {
     StormSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
-  public static class AckingStormRandomSentenceSpout extends BaseRichSpout {
+  public static class AckingRandomSentenceSpout extends BaseRichSpout {
     AtomicLong messageId = new AtomicLong();
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
@@ -46,7 +46,7 @@ public class AckingWordCountTopology {
 
     @Override
     public void nextTuple() {
-      String sentence = sentenceGenerator.next(SENTENCE_SIZE);
+      String sentence = sentenceGenerator.nextSentence(SENTENCE_SIZE);
       collector.emit(new Values(sentence), messageId.incrementAndGet());
     }
 

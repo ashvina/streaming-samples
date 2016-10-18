@@ -43,7 +43,7 @@ public class NoAckWordCountTopology {
 
     @Override
     public void nextTuple() {
-      String sentence = sentenceGenerator.next(SENTENCE_SIZE);
+      String sentence = sentenceGenerator.nextSentence(SENTENCE_SIZE);
       collector.emit(new Values(sentence));
     }
 

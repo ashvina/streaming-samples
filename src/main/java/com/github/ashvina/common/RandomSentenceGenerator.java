@@ -29,13 +29,17 @@ public class RandomSentenceGenerator {
     return wordList;
   }
 
-  public String next(int desiredSentenceSize) {
+  public String nextSentence(int desiredSentenceSize) {
     StringBuilder builder = new StringBuilder();
     while (desiredSentenceSize > 0) {
-      String word = wordList.get(rand.nextInt(wordList.size()));
+      String word = nextWord();
       desiredSentenceSize -= word.length();
       builder.append(word);
     }
     return builder.toString();
+  }
+
+  public String nextWord() {
+    return wordList.get(rand.nextInt(wordList.size()));
   }
 }

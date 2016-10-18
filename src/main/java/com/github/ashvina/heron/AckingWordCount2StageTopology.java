@@ -13,26 +13,27 @@ import com.twitter.heron.api.tuple.Fields;
 import com.twitter.heron.api.tuple.Values;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
-public class NoAckWordCountTopology {
+public class AckingWordCount2StageTopology {
   public static void main(String[] args) throws Exception {
     WordCountTopologyHelper helper = new WordCountTopologyHelper(args);
+
     TopologyBuilder builder = new TopologyBuilder();
-    builder.setSpout("spout", new NoAckStormRandomSentenceSpout(), helper.spouts);
-    builder.setBolt("split", new SplitSentence(), helper.wordBolts).shuffleGrouping("spout");
+    builder.setSpout("spout", new AckingRandomWordSpout(), helper.spouts);
     builder.setBolt("count", new WordCount(), helper.countBolts)
-        .fieldsGrouping("split", new Fields(WordCountTopologyHelper.FIELD_WORD));
+        .fieldsGrouping("spout", new Fields(WordCountTopologyHelper.FIELD_WORD));
 
     Config conf = new Config();
     conf.setDebug(false);
-    conf.setEnableAcking(false);
+    conf.setMaxSpoutPending(10000);
     conf.setNumStmgrs(helper.numWorkers);
+    conf.setEnableAcking(true);
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
-  public static class NoAckStormRandomSentenceSpout extends BaseRichSpout {
-    public static final int SENTENCE_SIZE = 200;
-
+  public static class AckingRandomWordSpout extends BaseRichSpout {
+    AtomicLong messageId = new AtomicLong();
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
 
@@ -44,8 +45,8 @@ public class NoAckWordCountTopology {
 
     @Override
     public void nextTuple() {
-      String sentence = sentenceGenerator.nextSentence(SENTENCE_SIZE);
-      collector.emit(new Values(sentence));
+      String sentence = sentenceGenerator.nextWord();
+      collector.emit(new Values(sentence), messageId.incrementAndGet());
     }
 
     @Override
@@ -58,7 +59,7 @@ public class NoAckWordCountTopology {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields(WordCountTopologyHelper.FIELD_SENTENCE));
+      declarer.declare(new Fields(WordCountTopologyHelper.FIELD_WORD));
     }
   }
 }
