@@ -1,16 +1,30 @@
 package com.github.ashvina.heron;
 
+import java.util.Map;
+
+import com.github.ashvina.common.Restriction;
 import com.github.ashvina.common.WordCountTopologyHelper;
+
 import com.twitter.heron.api.bolt.BaseBasicBolt;
 import com.twitter.heron.api.bolt.BasicOutputCollector;
 import com.twitter.heron.api.topology.OutputFieldsDeclarer;
+import com.twitter.heron.api.topology.TopologyContext;
 import com.twitter.heron.api.tuple.Fields;
 import com.twitter.heron.api.tuple.Tuple;
 import com.twitter.heron.api.tuple.Values;
 
 public class SplitSentence extends BaseBasicBolt {
+  Restriction restriction;
+
+  @Override
+  public void prepare(Map<String, Object> map, TopologyContext topologyContext) {
+    super.prepare(map, topologyContext);
+    restriction = new Restriction(topologyContext, Restriction.getYarnContainerId());
+  }
+
   @Override
   public void execute(Tuple tuple, BasicOutputCollector collector) {
+    restriction.execute();
     String sentence = tuple.getStringByField(WordCountTopologyHelper.FIELD_SENTENCE);
     String[] words = sentence.split(" ");
     for (String word : words) {

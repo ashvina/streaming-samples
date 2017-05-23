@@ -30,9 +30,18 @@ public class RandomSentenceGenerator {
   }
 
   public String nextSentence(int desiredSentenceSize) {
+    return nextSentence(desiredSentenceSize, 0);
+  }
+
+  public String nextSentence(int desiredSentenceSize, int skewPercent) {
     StringBuilder builder = new StringBuilder();
     while (desiredSentenceSize > 0) {
-      String word = nextWord();
+      String word;
+      if (skewPercent > 0 && rand.nextInt(100) < skewPercent) {
+        word = "skew ";
+      } else {
+        word = nextWord();
+      }
       desiredSentenceSize -= word.length();
       builder.append(word);
     }

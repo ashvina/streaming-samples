@@ -29,7 +29,7 @@ public class AckingWordCountTopology {
 
     Config conf = new Config();
     conf.setDebug(false);
-    conf.setMaxSpoutPending(10000);
+    conf.setMaxSpoutPending(Integer.MAX_VALUE);
     conf.setNumStmgrs(helper.numWorkers);
     conf.setEnableAcking(true);
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());

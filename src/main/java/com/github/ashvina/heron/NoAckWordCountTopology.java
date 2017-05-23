@@ -1,7 +1,9 @@
 package com.github.ashvina.heron;
 
 import com.github.ashvina.common.RandomSentenceGenerator;
+import com.github.ashvina.common.Restriction;
 import com.github.ashvina.common.WordCountTopologyHelper;
+
 import com.twitter.heron.api.Config;
 import com.twitter.heron.api.HeronSubmitter;
 import com.twitter.heron.api.spout.BaseRichSpout;
@@ -32,6 +34,7 @@ public class NoAckWordCountTopology {
 
   public static class NoAckStormRandomSentenceSpout extends BaseRichSpout {
     public static final int SENTENCE_SIZE = 200;
+    Restriction restriction;
 
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
@@ -40,10 +43,12 @@ public class NoAckWordCountTopology {
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
+      restriction = new Restriction(context, Restriction.getYarnContainerId());
     }
 
     @Override
     public void nextTuple() {
+      restriction.execute();
       String sentence = sentenceGenerator.nextSentence(SENTENCE_SIZE);
       collector.emit(new Values(sentence));
     }
