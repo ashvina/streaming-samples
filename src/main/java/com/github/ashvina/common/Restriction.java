@@ -22,6 +22,12 @@ public class Restriction {
   private int tuplesSentSoFar = 0;
   private long windowStartTime = 0;
 
+  private int skewPercent = 0;
+
+  public int getSkewPercent() {
+    return skewPercent;
+  }
+
   public Restriction(TopologyContext context, String container) {
     this.taskId = context.getThisTaskId();
     this.componentId = context.getThisComponentId();
@@ -55,6 +61,9 @@ public class Restriction {
         }
       } else if (componentConfig != null) {
         tpm = Integer.valueOf(componentConfig.get("tpm"));
+        if (componentConfig.containsKey("skew")) {
+          this.skewPercent = Integer.valueOf(componentConfig.get("skew"));
+        }
       }
 
       if (tpm > 0) {

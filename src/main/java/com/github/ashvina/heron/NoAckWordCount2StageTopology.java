@@ -1,6 +1,7 @@
 package com.github.ashvina.heron;
 
 import com.github.ashvina.common.RandomSentenceGenerator;
+import com.github.ashvina.common.Restriction;
 import com.github.ashvina.common.WordCountTopologyHelper;
 import com.twitter.heron.api.Config;
 import com.twitter.heron.api.HeronSubmitter;
@@ -19,7 +20,7 @@ public class NoAckWordCount2StageTopology {
     WordCountTopologyHelper helper = new WordCountTopologyHelper(args);
 
     TopologyBuilder builder = new TopologyBuilder();
-    builder.setSpout("spout", new AckingRandomWordSpout(), helper.spouts);
+    builder.setSpout("spout", new NoAckRandomWordSpout(), helper.spouts);
     builder.setBolt("count", new WordCount(), helper.countBolts)
         .fieldsGrouping("spout", new Fields(WordCountTopologyHelper.FIELD_WORD));
 
@@ -30,19 +31,22 @@ public class NoAckWordCount2StageTopology {
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
-  public static class AckingRandomWordSpout extends BaseRichSpout {
+  public static class NoAckRandomWordSpout extends BaseRichSpout {
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
+    Restriction restriction;
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
+      restriction = new Restriction(context, Restriction.getYarnContainerId());
     }
 
     @Override
     public void nextTuple() {
-      String sentence = sentenceGenerator.nextWord();
+      restriction.execute();
+      String sentence = sentenceGenerator.nextWord(restriction.getSkewPercent());
       collector.emit(new Values(sentence));
     }
 

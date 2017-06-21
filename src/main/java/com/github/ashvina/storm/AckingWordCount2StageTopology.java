@@ -44,7 +44,7 @@ public class AckingWordCount2StageTopology {
 
     @Override
     public void nextTuple() {
-      String sentence = sentenceGenerator.nextWord();
+      String sentence = sentenceGenerator.nextWord(0);
       collector.emit(new Values(sentence), messageId.incrementAndGet());
     }
 

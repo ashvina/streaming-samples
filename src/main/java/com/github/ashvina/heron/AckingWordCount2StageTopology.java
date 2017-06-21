@@ -1,6 +1,7 @@
 package com.github.ashvina.heron;
 
 import com.github.ashvina.common.RandomSentenceGenerator;
+import com.github.ashvina.common.Restriction;
 import com.github.ashvina.common.WordCountTopologyHelper;
 import com.twitter.heron.api.Config;
 import com.twitter.heron.api.HeronSubmitter;
@@ -36,16 +37,19 @@ public class AckingWordCount2StageTopology {
     AtomicLong messageId = new AtomicLong();
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
+    Restriction restriction;
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
+      restriction = new Restriction(context, Restriction.getYarnContainerId());
     }
 
     @Override
     public void nextTuple() {
-      String sentence = sentenceGenerator.nextWord();
+      restriction.execute();
+      String sentence = sentenceGenerator.nextWord(restriction.getSkewPercent());
       collector.emit(new Values(sentence), messageId.incrementAndGet());
     }
 
