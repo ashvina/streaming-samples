@@ -33,7 +33,7 @@ public class Restriction {
     return Paths.get(new File(".").getAbsolutePath()).getParent().getFileName().toString();
   }
 
-  private void setRate() {
+  private void setConfigParams() {
     if (System.currentTimeMillis() - previousSetRateTime < 5000) {
       return;
     }
@@ -69,7 +69,7 @@ public class Restriction {
   }
 
   public void execute() {
-    setRate();
+    setConfigParams();
     if (maxTuplesPerWindow > 0 && tuplesSentSoFar > maxTuplesPerWindow) {
       long delay = windowStartTime + WINDOW_SIZE_MILLIS - System.currentTimeMillis();
       delay = delay < 0 ? WINDOW_SIZE_MILLIS : delay;

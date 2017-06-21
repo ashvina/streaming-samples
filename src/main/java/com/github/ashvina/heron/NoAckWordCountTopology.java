@@ -49,7 +49,7 @@ public class NoAckWordCountTopology {
     @Override
     public void nextTuple() {
       restriction.execute();
-      String sentence = sentenceGenerator.nextSentence(SENTENCE_SIZE);
+      String sentence = sentenceGenerator.nextSentence(SENTENCE_SIZE, i);
       collector.emit(new Values(sentence));
     }
 
