@@ -22,6 +22,12 @@ public class Restriction {
   private int tuplesSentSoFar = 0;
   private long windowStartTime = 0;
 
+  private int skewPercent = 0;
+
+  public int getSkewPercent() {
+    return skewPercent;
+  }
+
   public Restriction(TopologyContext context, String container) {
     this.taskId = context.getThisTaskId();
     this.componentId = context.getThisComponentId();
@@ -33,7 +39,7 @@ public class Restriction {
     return Paths.get(new File(".").getAbsolutePath()).getParent().getFileName().toString();
   }
 
-  private void setRate() {
+  private void setConfigParams() {
     if (System.currentTimeMillis() - previousSetRateTime < 5000) {
       return;
     }
@@ -55,6 +61,9 @@ public class Restriction {
         }
       } else if (componentConfig != null) {
         tpm = Integer.valueOf(componentConfig.get("tpm"));
+        if (componentConfig.containsKey("skew")) {
+          this.skewPercent = Integer.valueOf(componentConfig.get("skew"));
+        }
       }
 
       if (tpm > 0) {
@@ -69,7 +78,7 @@ public class Restriction {
   }
 
   public void execute() {
-    setRate();
+    setConfigParams();
     if (maxTuplesPerWindow > 0 && tuplesSentSoFar > maxTuplesPerWindow) {
       long delay = windowStartTime + WINDOW_SIZE_MILLIS - System.currentTimeMillis();
       delay = delay < 0 ? WINDOW_SIZE_MILLIS : delay;
