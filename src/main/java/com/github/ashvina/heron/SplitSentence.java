@@ -17,9 +17,9 @@ public class SplitSentence extends BaseBasicBolt {
   Restriction restriction;
 
   @Override
-  public void prepare(Map<String, Object> map, TopologyContext topologyContext) {
-    super.prepare(map, topologyContext);
-    restriction = new Restriction(topologyContext, Restriction.getYarnContainerId());
+  public void prepare(Map<String, Object> map, TopologyContext context) {
+    super.prepare(map, context);
+    restriction = new Restriction(context.getThisTaskId() + "", context.getThisComponentId(), Restriction.getYarnContainerId());
   }
 
   @Override

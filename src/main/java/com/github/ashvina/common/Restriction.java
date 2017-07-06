@@ -4,48 +4,50 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.yaml.snakeyaml.Yaml;
 
-import com.twitter.heron.api.topology.TopologyContext;
-
 public class Restriction {
-  private final String componentId;
-  private int taskId;
+  private String taskId;
+  private String componentId;
   private String containerId;
 
+  private long startTimeMillis = 0;
+  private double MINUTE = Duration.ofMinutes(1).toMillis();
   private long previousSetRateTime = 0;
-  private static final int WINDOW_SIZE_MILLIS = 20;
-  private int maxTuplesPerWindow = 0;
-  private int tuplesSentSoFar = 0;
-  private long windowStartTime = 0;
+  private int windowSizeMillis = 20;
+  private double maxTuplesPerWindow = 0;
+  private int executeCount = 0;
 
   private int skewPercent = 0;
 
-  public int getSkewPercent() {
-    return skewPercent;
-  }
+  public Restriction(String taskId, String componentId, String containerId) {
+    this.taskId = taskId;
+    this.componentId = componentId;
+    this.containerId = containerId;
+    System.out.println(String.format("Task:%s, component:%s, container:%s", taskId, componentId, containerId));
 
-  public Restriction(TopologyContext context, String container) {
-    this.taskId = context.getThisTaskId();
-    this.componentId = context.getThisComponentId();
-    containerId = container;
-    System.out.println(String.format("Start task %d in container %s", taskId, containerId));
+    startTimeMillis = System.currentTimeMillis();
   }
 
   public static String getYarnContainerId() {
     return Paths.get(new File(".").getAbsolutePath()).getParent().getFileName().toString();
   }
 
+  public int getSkewPercent() {
+    return skewPercent;
+  }
+
   private void setConfigParams() {
-    if (System.currentTimeMillis() - previousSetRateTime < 5000) {
+    if (System.currentTimeMillis() - previousSetRateTime < TimeUnit.SECONDS.toMillis(5)) {
       return;
     }
     previousSetRateTime = System.currentTimeMillis();
 
-    int tpm = 0;
+    double tpm = 0;
     maxTuplesPerWindow = 0;
     try {
       Yaml yaml = new Yaml();
@@ -57,21 +59,21 @@ public class Restriction {
       if (taskConfig != null) {
         String containerToBeDelayed = taskConfig.get("container");
         if (containerToBeDelayed == null || containerId.endsWith(containerToBeDelayed)) {
-          tpm = Integer.valueOf(taskConfig.get("tpm"));
+          tpm = Double.valueOf(taskConfig.get("tpm"));
         }
       } else if (componentConfig != null) {
-        tpm = Integer.valueOf(componentConfig.get("tpm"));
+        tpm = Double.valueOf(componentConfig.get("tpm"));
         if (componentConfig.containsKey("skew")) {
           this.skewPercent = Integer.valueOf(componentConfig.get("skew"));
         }
       }
 
       if (tpm > 0) {
-        maxTuplesPerWindow = (tpm * WINDOW_SIZE_MILLIS) / (60 * 1000);
+        maxTuplesPerWindow = (tpm * windowSizeMillis) / MINUTE;
       }
 
-      System.out.println(String.format("TPM for %s:%d in %s is %d, i.e. %d in %d millis",
-          componentId, taskId, containerId, tpm, maxTuplesPerWindow, WINDOW_SIZE_MILLIS));
+      System.out.println(String.format("TPM for %s:%s in %s is %f, i.e. %.2f in %d millis",
+          componentId, taskId, containerId, tpm, maxTuplesPerWindow, windowSizeMillis));
     } catch (FileNotFoundException e) {
       System.out.println("No delay config file found");
     }
@@ -79,17 +81,24 @@ public class Restriction {
 
   public void execute() {
     setConfigParams();
-    if (maxTuplesPerWindow > 0 && tuplesSentSoFar > maxTuplesPerWindow) {
-      long delay = windowStartTime + WINDOW_SIZE_MILLIS - System.currentTimeMillis();
-      delay = delay < 0 ? WINDOW_SIZE_MILLIS : delay;
-      try {
-        TimeUnit.MILLISECONDS.sleep(delay);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
+    if (maxTuplesPerWindow > 0) {
+      long currentTime = System.currentTimeMillis();
+      int windowNumber = (int) ((currentTime - startTimeMillis) / windowSizeMillis) + 1;
+      int maxExpectedCount = (int) (windowNumber * maxTuplesPerWindow);
+      while (executeCount > maxExpectedCount) {
+        long delay = windowNumber * windowSizeMillis - currentTime;
+        delay = delay < 0 ? windowSizeMillis : delay;
+        try {
+          TimeUnit.MILLISECONDS.sleep(delay);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+        currentTime = System.currentTimeMillis();
+        windowNumber = (int) ((currentTime - startTimeMillis) / windowSizeMillis) + 1;
+        maxExpectedCount = (int) (windowNumber * maxTuplesPerWindow);
       }
-      windowStartTime = System.currentTimeMillis();
-      tuplesSentSoFar = 0;
     }
-    tuplesSentSoFar++;
+
+    executeCount++;
   }
 }
