@@ -1,7 +1,11 @@
 package com.github.ashvina.storm;
 
+import java.util.Map;
+
 import com.github.ashvina.common.RandomSentenceGenerator;
+import com.github.ashvina.common.TopologyArgParser;
 import com.github.ashvina.common.WordCountTopologyHelper;
+
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -12,21 +16,21 @@ import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 
-import java.util.Map;
+import static com.github.ashvina.common.WordCountTopologyHelper.COUNT;
+import static com.github.ashvina.common.WordCountTopologyHelper.SPOUT;
 
 public class NoAckWordCount2StageTopology {
   public static void main(String[] args) throws Exception {
-    WordCountTopologyHelper helper = new WordCountTopologyHelper(args);
+    TopologyArgParser parser = new TopologyArgParser(args, SPOUT, COUNT);
 
     TopologyBuilder builder = new TopologyBuilder();
-    builder.setSpout("spout", new AckingRandomWordSpout(), helper.spouts);
-    builder.setBolt("count", new WordCount(), helper.countBolts)
-        .fieldsGrouping("spout", new Fields(WordCountTopologyHelper.FIELD_WORD));
+    builder.setSpout(SPOUT, new AckingRandomWordSpout(), parser.get(SPOUT));
+    builder.setBolt(COUNT, new WordCount(), parser.get(COUNT))
+        .fieldsGrouping(SPOUT, new Fields(WordCountTopologyHelper.FIELD_WORD));
 
     Config conf = new Config();
     conf.setDebug(false);
-    conf.setMaxSpoutPending(10000);
-    conf.setNumWorkers(helper.numWorkers);
+    conf.setNumWorkers(parser.getNumWorkers());
     StormSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 

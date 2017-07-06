@@ -1,8 +1,13 @@
 package com.github.ashvina.heron;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.github.ashvina.common.RandomSentenceGenerator;
 import com.github.ashvina.common.Restriction;
+import com.github.ashvina.common.TopologyArgParser;
 import com.github.ashvina.common.WordCountTopologyHelper;
+
 import com.twitter.heron.api.Config;
 import com.twitter.heron.api.HeronSubmitter;
 import com.twitter.heron.api.spout.BaseRichSpout;
@@ -13,26 +18,27 @@ import com.twitter.heron.api.topology.TopologyContext;
 import com.twitter.heron.api.tuple.Fields;
 import com.twitter.heron.api.tuple.Values;
 
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import static com.github.ashvina.common.WordCountTopologyHelper.COUNT;
+import static com.github.ashvina.common.WordCountTopologyHelper.SPLIT;
+import static com.github.ashvina.common.WordCountTopologyHelper.SPOUT;
 
 public class AckingWordCountTopology {
   public static final int SENTENCE_SIZE = 200;
 
   public static void main(String[] args) throws Exception {
-    WordCountTopologyHelper helper = new WordCountTopologyHelper(args);
+    TopologyArgParser parser = new TopologyArgParser(args, SPOUT, SPLIT, COUNT);
 
     TopologyBuilder builder = new TopologyBuilder();
-    builder.setSpout("spout", new AckingStormRandomSentenceSpout(), helper.spouts);
-    builder.setBolt("split", new SplitSentence(), helper.wordBolts).shuffleGrouping("spout");
-    builder.setBolt("count", new WordCount(), helper.countBolts)
-        .fieldsGrouping("split", new Fields(WordCountTopologyHelper.FIELD_WORD));
+    builder.setSpout(SPOUT, new AckingStormRandomSentenceSpout(), parser.get(SPOUT));
+    builder.setBolt(SPLIT, new SplitSentence(), parser.get(SPLIT)).shuffleGrouping(SPOUT);
+    builder.setBolt(COUNT, new WordCount(), parser.get(COUNT))
+        .fieldsGrouping(SPLIT, new Fields(WordCountTopologyHelper.FIELD_WORD));
 
     Config conf = new Config();
     conf.setDebug(false);
-    conf.setMaxSpoutPending(Integer.MAX_VALUE);
-    conf.setNumStmgrs(helper.numWorkers);
+    conf.setNumStmgrs(parser.getNumWorkers());
     conf.setEnableAcking(true);
+    conf.setMaxSpoutPending(Integer.MAX_VALUE);
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 

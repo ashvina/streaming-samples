@@ -1,7 +1,12 @@
 package com.github.ashvina.storm;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.github.ashvina.common.RandomSentenceGenerator;
+import com.github.ashvina.common.TopologyArgParser;
 import com.github.ashvina.common.WordCountTopologyHelper;
+
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -12,24 +17,26 @@ import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import static com.github.ashvina.common.WordCountTopologyHelper.COUNT;
+import static com.github.ashvina.common.WordCountTopologyHelper.SPLIT;
+import static com.github.ashvina.common.WordCountTopologyHelper.SPOUT;
 
 public class AckingWordCountTopology {
   public static final int SENTENCE_SIZE = 200;
 
   public static void main(String[] args) throws Exception {
-    WordCountTopologyHelper helper = new WordCountTopologyHelper(args);
+    TopologyArgParser parser = new TopologyArgParser(args, SPOUT, SPLIT, COUNT);
+
 
     TopologyBuilder builder = new TopologyBuilder();
-    builder.setSpout("spout", new AckingRandomSentenceSpout(), helper.spouts);
-    builder.setBolt("split", new SplitSentence(), helper.wordBolts).shuffleGrouping("spout");
-    builder.setBolt("count", new WordCount(), helper.countBolts)
-        .fieldsGrouping("split", new Fields(WordCountTopologyHelper.FIELD_WORD));
+    builder.setSpout(SPOUT, new AckingRandomSentenceSpout(), parser.get(SPOUT));
+    builder.setBolt(SPLIT, new SplitSentence(), parser.get(SPLIT)).shuffleGrouping(SPOUT);
+    builder.setBolt(COUNT, new WordCount(), parser.get(COUNT))
+        .fieldsGrouping(SPLIT, new Fields(WordCountTopologyHelper.FIELD_WORD));
 
     Config conf = new Config();
     conf.setDebug(false);
-    conf.setNumWorkers(helper.numWorkers);
+    conf.setNumWorkers(parser.getNumWorkers());
     StormSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
