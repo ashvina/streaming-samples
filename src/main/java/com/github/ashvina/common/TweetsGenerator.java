@@ -69,6 +69,18 @@ public class TweetsGenerator {
       }
     }
 
+    public List<String> getHashtags() {
+      return hashtags;
+    }
+
+    public List<String> getMentions() {
+      return mentions;
+    }
+
+    public String getText() {
+      return text;
+    }
+
     @Override
     public String toString() {
       return "Tweet{" +

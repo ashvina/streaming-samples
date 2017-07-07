@@ -23,6 +23,9 @@ public class Restriction {
   private int executeCount = 0;
 
   private int skewPercent = 0;
+  public Restriction(int taskId, String componentId, String containerId) {
+    this(taskId + "", componentId, containerId);
+  }
 
   public Restriction(String taskId, String componentId, String containerId) {
     this.taskId = taskId;

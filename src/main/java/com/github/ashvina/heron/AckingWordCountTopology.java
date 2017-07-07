@@ -23,7 +23,7 @@ import static com.github.ashvina.common.WordCountTopologyHelper.SPLIT;
 import static com.github.ashvina.common.WordCountTopologyHelper.SPOUT;
 
 public class AckingWordCountTopology {
-  public static final int SENTENCE_SIZE = 200;
+  static final int SENTENCE_SIZE = 200;
 
   public static void main(String[] args) throws Exception {
     TopologyArgParser parser = new TopologyArgParser(args, SPOUT, SPLIT, COUNT);
@@ -52,7 +52,7 @@ public class AckingWordCountTopology {
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
-      restriction = new Restriction(context, Restriction.getYarnContainerId());
+      restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     }
 
     @Override

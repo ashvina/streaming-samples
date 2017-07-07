@@ -49,7 +49,7 @@ public class NoAckWordCountTopology {
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
-      restriction = new Restriction(context.getThisTaskId() + "", context.getThisComponentId(), Restriction.getYarnContainerId());
+      restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     }
 
     @Override
