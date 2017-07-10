@@ -22,7 +22,7 @@ public class TweetSpout extends BaseRichSpout {
   private TweetsGenerator tweetsGenerator;
   private String tweetsFilePath;
 
-  public TweetSpout(String tweetsFilePath) {
+  TweetSpout(String tweetsFilePath) {
     this.tweetsFilePath = tweetsFilePath;
   }
 
@@ -35,15 +35,20 @@ public class TweetSpout extends BaseRichSpout {
 
   @Override
   public void nextTuple() {
-    restriction.execute();
     TweetsGenerator.Tweet tweet = tweetsGenerator.nextTweet();
     while (tweet.getHashtags().isEmpty() && tweet.getMentions().isEmpty()) {
       tweet = tweetsGenerator.nextTweet();
     }
 
     String text = tweet.getText();
-    tweet.getMentions().forEach(mention -> collector.emit(new Values(mention, text)));
-    tweet.getHashtags().forEach(hashtag -> collector.emit(new Values(hashtag, text)));
+    tweet.getHashtags().forEach(tag -> {
+      collector.emit(new Values(tag, text));
+      restriction.execute();
+    });
+    tweet.getMentions().forEach(tag -> {
+      collector.emit(new Values(tag, text));
+      restriction.execute();
+    });
   }
 
   @Override

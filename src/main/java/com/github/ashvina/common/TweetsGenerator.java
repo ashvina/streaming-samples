@@ -58,7 +58,7 @@ public class TweetsGenerator {
     private final List<String> mentions = new ArrayList<>();
     private final String text;
 
-    public Tweet(String text) {
+    Tweet(String text) {
       this.text = text;
       Extractor extractor = new Extractor();
       hashtags.addAll(extractor.extractHashtags(text));
