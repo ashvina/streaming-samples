@@ -8,6 +8,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.util.concurrent.RateLimiter;
+
 import org.yaml.snakeyaml.Yaml;
 
 public class Restriction {
@@ -15,14 +17,12 @@ public class Restriction {
   private String componentId;
   private String containerId;
 
-  private long startTimeMillis = 0;
-  private double MINUTE = Duration.ofMinutes(1).toMillis();
+  private long MINUTE = Duration.ofMinutes(1).getSeconds();
   private long previousSetRateTime = 0;
-  private int windowSizeMillis = 20;
-  private double maxTuplesPerWindow = 0;
-  private int executeCount = 0;
 
   private int skewPercent = 0;
+  private RateLimiter limiter;
+
   public Restriction(int taskId, String componentId, String containerId) {
     this(taskId + "", componentId, containerId);
   }
@@ -32,8 +32,6 @@ public class Restriction {
     this.componentId = componentId;
     this.containerId = containerId;
     System.out.println(String.format("Task:%s, component:%s, container:%s", taskId, componentId, containerId));
-
-    startTimeMillis = System.currentTimeMillis();
   }
 
   public static String getYarnContainerId() {
@@ -50,8 +48,7 @@ public class Restriction {
     }
     previousSetRateTime = System.currentTimeMillis();
 
-    double tpm = 0;
-    maxTuplesPerWindow = 0;
+    int tpm = 0;
     try {
       Yaml yaml = new Yaml();
       Map<String, Object> delayMap =
@@ -62,21 +59,27 @@ public class Restriction {
       if (taskConfig != null) {
         String containerToBeDelayed = taskConfig.get("container");
         if (containerToBeDelayed == null || containerId.endsWith(containerToBeDelayed)) {
-          tpm = Double.valueOf(taskConfig.get("tpm"));
+          tpm = Integer.parseInt(taskConfig.get("tpm"));
         }
       } else if (componentConfig != null) {
-        tpm = Double.valueOf(componentConfig.get("tpm"));
+        tpm = Integer.parseInt(componentConfig.get("tpm"));
         if (componentConfig.containsKey("skew")) {
           this.skewPercent = Integer.valueOf(componentConfig.get("skew"));
         }
       }
 
+      long maxTuplesPerWindow = Integer.MAX_VALUE;
       if (tpm > 0) {
-        maxTuplesPerWindow = (tpm * windowSizeMillis) / MINUTE;
+        maxTuplesPerWindow = tpm / MINUTE;
+        limiter = RateLimiter.create(maxTuplesPerWindow);
+      } else {
+        limiter = null;
       }
 
-      System.out.println(String.format("TPM for %s:%s in %s is %f, i.e. %.2f in %d millis",
-          componentId, taskId, containerId, tpm, maxTuplesPerWindow, windowSizeMillis));
+      System.out.println(String.format("TPM for %s:%s in %s is %d, i.e. %d per sec",
+          componentId, taskId, containerId, tpm, maxTuplesPerWindow));
+
+
     } catch (FileNotFoundException e) {
       System.out.println("No delay config file found");
     }
