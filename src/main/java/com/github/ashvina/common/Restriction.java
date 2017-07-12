@@ -22,6 +22,8 @@ public class Restriction {
 
   private int skewPercent = 0;
   private RateLimiter limiter;
+  private Map<String, String> taskConfig;
+  private Map<String, String> componentConfig;
 
   public Restriction(int taskId, String componentId, String containerId) {
     this(taskId + "", componentId, containerId);
@@ -48,63 +50,66 @@ public class Restriction {
     }
     previousSetRateTime = System.currentTimeMillis();
 
-    int tpm = 0;
     try {
       Yaml yaml = new Yaml();
       Map<String, Object> delayMap =
           (Map<String, Object>) yaml.load(new FileInputStream("/tmp/heron.yaml"));
-      Map<String, String> taskConfig = (Map<String, String>) delayMap.get(taskId + "");
-      Map<String, String> componentConfig = (Map<String, String>) delayMap.get(componentId);
+      taskConfig = (Map<String, String>) delayMap.get(taskId + "");
+      componentConfig = (Map<String, String>) delayMap.get(componentId);
 
-      if (taskConfig != null) {
-        String containerToBeDelayed = taskConfig.get("container");
-        if (containerToBeDelayed == null || containerId.endsWith(containerToBeDelayed)) {
-          tpm = Integer.parseInt(taskConfig.get("tpm"));
-        }
-      } else if (componentConfig != null) {
-        tpm = Integer.parseInt(componentConfig.get("tpm"));
-        if (componentConfig.containsKey("skew")) {
-          this.skewPercent = Integer.valueOf(componentConfig.get("skew"));
-        }
-      }
+      int tpm = (int) getConfigValue("tpm");
+      int amplitude = (int) getConfigValue("amplitude");
+      int lambdaSec = (int) getConfigValue("lambdaSec");
+      this.skewPercent = (int) getConfigValue("skew");
 
       long maxTuplesPerWindow = Integer.MAX_VALUE;
       if (tpm > 0) {
         maxTuplesPerWindow = tpm / MINUTE;
+
+        if (amplitude > 0 && lambdaSec > 0) {
+          // sine curve for tpm variation
+          amplitude /= MINUTE;
+          double unitRadian = (2 * Math.PI) / lambdaSec;
+          long window = Duration.ofMillis(System.currentTimeMillis()).getSeconds() % lambdaSec;
+          maxTuplesPerWindow += Math.sin(window * unitRadian) * amplitude;
+        }
+
         limiter = RateLimiter.create(maxTuplesPerWindow);
       } else {
         limiter = null;
       }
 
-      System.out.println(String.format("TPM for %s:%s in %s is %d, i.e. %d per sec",
-          componentId, taskId, containerId, tpm, maxTuplesPerWindow));
-
-
+      System.out.println(String.format("Current rate for %s:%s in %s is %d per sec",
+          componentId, taskId, containerId, maxTuplesPerWindow));
     } catch (FileNotFoundException e) {
       System.out.println("No delay config file found");
     }
   }
 
-  public void execute() {
-    setConfigParams();
-    if (maxTuplesPerWindow > 0) {
-      long currentTime = System.currentTimeMillis();
-      int windowNumber = (int) ((currentTime - startTimeMillis) / windowSizeMillis) + 1;
-      int maxExpectedCount = (int) (windowNumber * maxTuplesPerWindow);
-      while (executeCount > maxExpectedCount) {
-        long delay = windowNumber * windowSizeMillis - currentTime;
-        delay = delay < 0 ? windowSizeMillis : delay;
-        try {
-          TimeUnit.MILLISECONDS.sleep(delay);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+  private double getConfigValue(String name) {
+    double value = 0;
+    if (taskConfig != null) {
+      String containerId = taskConfig.get("container");
+      if (containerId == null || this.containerId.endsWith(containerId)) {
+        if (taskConfig.get(name) != null) {
+          value = Double.parseDouble(taskConfig.get(name));
         }
-        currentTime = System.currentTimeMillis();
-        windowNumber = (int) ((currentTime - startTimeMillis) / windowSizeMillis) + 1;
-        maxExpectedCount = (int) (windowNumber * maxTuplesPerWindow);
+      }
+    } else if (componentConfig != null) {
+      String containerId = componentConfig.get("container");
+      if (containerId == null || this.containerId.endsWith(containerId)) {
+        if (componentConfig.get(name) != null) {
+          value = Double.parseDouble(componentConfig.get(name));
+        }
       }
     }
+    return value;
+  }
 
-    executeCount++;
+  public void execute() {
+    setConfigParams();
+    if (limiter != null) {
+      limiter.acquire();
+    }
   }
 }
