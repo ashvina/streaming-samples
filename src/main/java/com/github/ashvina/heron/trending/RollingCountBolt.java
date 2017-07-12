@@ -3,11 +3,10 @@ package com.github.ashvina.heron.trending;
 import java.time.Duration;
 import java.util.Map;
 
-import com.github.ashvina.common.Restriction;
+import com.github.ashvina.heron.BaseRateLimitedBolt;
 
 import org.apache.storm.starter.tools.SlidingWindowCounter;
 
-import com.twitter.heron.api.bolt.BaseBasicBolt;
 import com.twitter.heron.api.bolt.BasicOutputCollector;
 import com.twitter.heron.api.topology.OutputFieldsDeclarer;
 import com.twitter.heron.api.topology.TopologyContext;
@@ -18,8 +17,7 @@ import com.twitter.heron.api.tuple.Values;
 import static com.github.ashvina.heron.trending.TopTrendingTopology.FIELD_COUNT;
 import static com.github.ashvina.heron.trending.TopTrendingTopology.FIELD_TREND;
 
-public class RollingCountBolt extends BaseBasicBolt {
-  private Restriction restriction;
+public class RollingCountBolt extends BaseRateLimitedBolt {
   private Duration window;
   private Duration emitRate;
   private SlidingWindowCounter<String> counter;
@@ -36,7 +34,6 @@ public class RollingCountBolt extends BaseBasicBolt {
   @Override
   public void prepare(Map<String, Object> map, TopologyContext context) {
     super.prepare(map, context);
-    restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     counter = new SlidingWindowCounter<>(compteSlotCount());
     previousEmitTime = System.currentTimeMillis();
   }

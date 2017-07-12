@@ -4,11 +4,10 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.github.ashvina.common.Restriction;
+import com.github.ashvina.heron.BaseRateLimitedBolt;
 
 import org.apache.storm.starter.tools.Rankings;
 
-import com.twitter.heron.api.bolt.BaseBasicBolt;
 import com.twitter.heron.api.bolt.BasicOutputCollector;
 import com.twitter.heron.api.topology.OutputFieldsDeclarer;
 import com.twitter.heron.api.topology.TopologyContext;
@@ -17,8 +16,7 @@ import com.twitter.heron.api.tuple.Tuple;
 
 import static com.github.ashvina.heron.trending.TopTrendingTopology.FIELD_RANKING;
 
-public class TotalRanker extends BaseBasicBolt {
-  private Restriction restriction;
+public class TotalRanker extends BaseRateLimitedBolt {
   private Duration emitRate;
   private int topN;
   private long previousEmitTime;
@@ -32,7 +30,6 @@ public class TotalRanker extends BaseBasicBolt {
   @Override
   public void prepare(Map<String, Object> map, TopologyContext context) {
     super.prepare(map, context);
-    restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     previousEmitTime = System.currentTimeMillis();
     rankings = new Rankings(topN);
   }

@@ -1,9 +1,11 @@
 package com.github.ashvina.heron.trending;
 
+import java.nio.file.Paths;
 import java.util.Map;
 
 import com.github.ashvina.common.Restriction;
 import com.github.ashvina.common.TweetsGenerator;
+import com.github.ashvina.heron.BaseRateLimitedSpout;
 
 import com.twitter.heron.api.spout.BaseRichSpout;
 import com.twitter.heron.api.spout.SpoutOutputCollector;
@@ -15,9 +17,7 @@ import com.twitter.heron.api.tuple.Values;
 import static com.github.ashvina.heron.trending.TopTrendingTopology.FIELD_TEXT;
 import static com.github.ashvina.heron.trending.TopTrendingTopology.FIELD_TREND;
 
-public class TweetSpout extends BaseRichSpout {
-  private Restriction restriction;
-
+public class TweetSpout extends BaseRateLimitedSpout {
   private SpoutOutputCollector collector;
   private TweetsGenerator tweetsGenerator;
   private String tweetsFilePath;
@@ -28,9 +28,9 @@ public class TweetSpout extends BaseRichSpout {
 
   @Override
   public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
-    tweetsGenerator = new TweetsGenerator(tweetsFilePath);
-    restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
+    super.open(conf, context, collector);
     this.collector = collector;
+    this.tweetsGenerator = new TweetsGenerator(tweetsFilePath);
   }
 
   @Override

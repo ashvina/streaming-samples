@@ -38,18 +38,17 @@ public class NoAckWordCountTopology {
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
-  public static class NoAckStormRandomSentenceSpout extends BaseRichSpout {
+  public static class NoAckStormRandomSentenceSpout extends BaseRateLimitedSpout {
     public static final int SENTENCE_SIZE = 200;
-    Restriction restriction;
 
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+      super.open(conf, context, collector);
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
-      restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     }
 
     @Override

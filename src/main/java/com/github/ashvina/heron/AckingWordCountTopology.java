@@ -42,17 +42,16 @@ public class AckingWordCountTopology {
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
-  public static class AckingStormRandomSentenceSpout extends BaseRichSpout {
+  public static class AckingStormRandomSentenceSpout extends BaseRateLimitedSpout {
     AtomicLong messageId = new AtomicLong();
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
-    Restriction restriction;
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+      super.open(conf, context, collector);
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
-      restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     }
 
     @Override

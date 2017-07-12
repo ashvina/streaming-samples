@@ -36,16 +36,15 @@ public class NoAckWordCount2StageTopology {
     HeronSubmitter.submitTopology(args[0], conf, builder.createTopology());
   }
 
-  public static class RandomWordSpout extends BaseRichSpout {
+  public static class RandomWordSpout extends BaseRateLimitedSpout {
     private SpoutOutputCollector collector;
     private RandomSentenceGenerator sentenceGenerator;
-    Restriction restriction;
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+      super.open(conf, context, collector);
       sentenceGenerator = new RandomSentenceGenerator();
       this.collector = collector;
-      restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
     }
 
     @Override

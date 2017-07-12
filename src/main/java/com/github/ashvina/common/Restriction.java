@@ -12,10 +12,13 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import org.yaml.snakeyaml.Yaml;
 
+import com.twitter.heron.api.topology.TopologyContext;
+
 public class Restriction {
   private String taskId;
   private String componentId;
   private String containerId;
+  private String configFilePath;
 
   private long MINUTE = Duration.ofMinutes(1).getSeconds();
   private long previousSetRateTime = 0;
@@ -25,14 +28,22 @@ public class Restriction {
   private Map<String, String> taskConfig;
   private Map<String, String> componentConfig;
 
-  public Restriction(int taskId, String componentId, String containerId) {
-    this(taskId + "", componentId, containerId);
+  public Restriction(TopologyContext context, String containerId, String fileName) {
+    this(context.getThisTaskId(),
+        context.getThisComponentId(),
+        containerId,
+        Paths.get("/tmp", fileName).toString());
   }
 
-  public Restriction(String taskId, String componentId, String containerId) {
+  public Restriction(int taskId, String componentId, String containerId, String file) {
+    this(taskId + "", componentId, containerId, file);
+  }
+
+  public Restriction(String taskId, String componentId, String containerId, String file) {
     this.taskId = taskId;
     this.componentId = componentId;
     this.containerId = containerId;
+    this.configFilePath = file;
     System.out.println(String.format("Task:%s, component:%s, container:%s", taskId, componentId, containerId));
   }
 
@@ -53,7 +64,7 @@ public class Restriction {
     try {
       Yaml yaml = new Yaml();
       Map<String, Object> delayMap =
-          (Map<String, Object>) yaml.load(new FileInputStream("/tmp/heron.yaml"));
+          (Map<String, Object>) yaml.load(new FileInputStream(configFilePath));
       taskConfig = (Map<String, String>) delayMap.get(taskId + "");
       componentConfig = (Map<String, String>) delayMap.get(componentId);
 
@@ -82,7 +93,7 @@ public class Restriction {
       System.out.println(String.format("Current rate for %s:%s in %s is %d per sec",
           componentId, taskId, containerId, maxTuplesPerWindow));
     } catch (FileNotFoundException e) {
-      System.out.println("No delay config file found");
+      System.out.println("Rate limiting config file not found: " + configFilePath);
     }
   }
 

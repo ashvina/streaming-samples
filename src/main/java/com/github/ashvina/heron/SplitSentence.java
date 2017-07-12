@@ -1,27 +1,14 @@
 package com.github.ashvina.heron;
 
-import java.util.Map;
-
-import com.github.ashvina.common.Restriction;
 import com.github.ashvina.common.WordCountTopologyHelper;
 
-import com.twitter.heron.api.bolt.BaseBasicBolt;
 import com.twitter.heron.api.bolt.BasicOutputCollector;
 import com.twitter.heron.api.topology.OutputFieldsDeclarer;
-import com.twitter.heron.api.topology.TopologyContext;
 import com.twitter.heron.api.tuple.Fields;
 import com.twitter.heron.api.tuple.Tuple;
 import com.twitter.heron.api.tuple.Values;
 
-public class SplitSentence extends BaseBasicBolt {
-  Restriction restriction;
-
-  @Override
-  public void prepare(Map<String, Object> map, TopologyContext context) {
-    super.prepare(map, context);
-    restriction = new Restriction(context.getThisTaskId(), context.getThisComponentId(), Restriction.getYarnContainerId());
-  }
-
+public class SplitSentence extends BaseRateLimitedBolt {
   @Override
   public void execute(Tuple tuple, BasicOutputCollector collector) {
     restriction.execute();
