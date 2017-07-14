@@ -8,8 +8,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.util.concurrent.RateLimiter;
-
 import org.yaml.snakeyaml.Yaml;
 
 import com.twitter.heron.api.topology.TopologyContext;
@@ -20,26 +18,25 @@ public class Restriction {
   private String containerId;
   private String configFilePath;
 
-  private long MINUTE = Duration.ofMinutes(1).getSeconds();
+  private Duration configRefreshDuration = Duration.ofSeconds(5);
   private long previousSetRateTime = 0;
+  private double rps;
+  private long requestLatencyNano;
+  private int requestsCount;
+  private long realLatency;
 
-  private int skewPercent = 0;
-  private RateLimiter limiter;
   private Map<String, String> taskConfig;
   private Map<String, String> componentConfig;
+  private int skewPercent = 0;
 
   public Restriction(TopologyContext context, String containerId, String fileName) {
-    this(context.getThisTaskId(),
+    this(context.getThisTaskId() + "",
         context.getThisComponentId(),
         containerId,
         Paths.get("/tmp", fileName).toString());
   }
 
-  public Restriction(int taskId, String componentId, String containerId, String file) {
-    this(taskId + "", componentId, containerId, file);
-  }
-
-  public Restriction(String taskId, String componentId, String containerId, String file) {
+  private Restriction(String taskId, String componentId, String containerId, String file) {
     this.taskId = taskId;
     this.componentId = componentId;
     this.containerId = containerId;
@@ -56,10 +53,12 @@ public class Restriction {
   }
 
   private void setConfigParams() {
-    if (System.currentTimeMillis() - previousSetRateTime < TimeUnit.SECONDS.toMillis(5)) {
+    if (System.nanoTime() - previousSetRateTime < configRefreshDuration.toNanos()) {
       return;
     }
-    previousSetRateTime = System.currentTimeMillis();
+    previousSetRateTime = System.nanoTime();
+    requestsCount = 0;
+    realLatency = 0;
 
     try {
       Yaml yaml = new Yaml();
@@ -68,30 +67,24 @@ public class Restriction {
       taskConfig = (Map<String, String>) delayMap.get(taskId + "");
       componentConfig = (Map<String, String>) delayMap.get(componentId);
 
-      int tpm = (int) getConfigValue("tpm");
-      int amplitude = (int) getConfigValue("amplitude");
+      rps = getConfigValue("tpm") / 60;
+      double amplitude = getConfigValue("amplitude") / 60;
       int lambdaSec = (int) getConfigValue("lambdaSec");
       this.skewPercent = (int) getConfigValue("skew");
 
-      long maxTuplesPerWindow = Integer.MAX_VALUE;
-      if (tpm > 0) {
-        maxTuplesPerWindow = tpm / MINUTE;
-
+      if (rps > 0) {
         if (amplitude > 0 && lambdaSec > 0) {
           // sine curve for tpm variation
-          amplitude /= MINUTE;
           double unitRadian = (2 * Math.PI) / lambdaSec;
           long window = Duration.ofMillis(System.currentTimeMillis()).getSeconds() % lambdaSec;
-          maxTuplesPerWindow += Math.sin(window * unitRadian) * amplitude;
+          rps += Math.sin(window * unitRadian) * amplitude;
         }
-
-        limiter = RateLimiter.create(maxTuplesPerWindow);
-      } else {
-        limiter = null;
+        requestLatencyNano = (long) (Duration.ofSeconds(1).toNanos() / rps);
       }
 
-      System.out.println(String.format("Current rate for %s:%s in %s is %d per sec",
-          componentId, taskId, containerId, maxTuplesPerWindow));
+      System.out.println(String.format("Rate for %s:%s in %s = %.2f per sec, i.e. %d nano latency",
+          componentId, taskId, containerId, rps, requestLatencyNano));
+
     } catch (FileNotFoundException e) {
       System.out.println("Rate limiting config file not found: " + configFilePath);
     }
@@ -118,9 +111,23 @@ public class Restriction {
   }
 
   public void execute() {
+    long executeStart = System.nanoTime();
     setConfigParams();
-    if (limiter != null) {
-      limiter.acquire();
+
+    if (rps > 0) {
+      if (requestsCount * requestLatencyNano < realLatency) {
+        // we are too slow, don't throttle this request
+      } else {
+        // the sleep operation overhead could be as high as 2 millis.
+        try {
+          TimeUnit.NANOSECONDS.sleep(requestLatencyNano);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
+
+    requestsCount++;
+    realLatency += System.nanoTime() - executeStart;
   }
 }
