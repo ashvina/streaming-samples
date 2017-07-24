@@ -33,7 +33,7 @@ public class RandomSentenceGenerator {
     return nextSentence(desiredSentenceSize, 0);
   }
 
-  public String nextSentence(int desiredSentenceSize, int skewPercent) {
+  public String nextSentence(int desiredSentenceSize, double skewPercent) {
     StringBuilder builder = new StringBuilder();
     while (desiredSentenceSize > 0) {
       String word = nextWord(skewPercent);
@@ -43,8 +43,8 @@ public class RandomSentenceGenerator {
     return builder.toString();
   }
 
-  public String nextWord(int skewPercent) {
-    if (skewPercent > 0 && rand.nextInt(100) < skewPercent) {
+  public String nextWord(double skewPercent) {
+    if (skewPercent > 0 && (rand.nextDouble() * 100) < skewPercent) {
       return "skew ";
     } else {
       return wordList.get(rand.nextInt(wordList.size()));

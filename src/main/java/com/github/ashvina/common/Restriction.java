@@ -27,7 +27,7 @@ public class Restriction {
 
   private Map<String, String> taskConfig;
   private Map<String, String> componentConfig;
-  private int skewPercent = 0;
+  private double skewPercent = 0;
 
   public Restriction(TopologyContext context, String containerId, String fileName) {
     this(context.getThisTaskId() + "",
@@ -48,7 +48,7 @@ public class Restriction {
     return Paths.get(new File(".").getAbsolutePath()).getParent().getFileName().toString();
   }
 
-  public int getSkewPercent() {
+  public double getSkewPercent() {
     return skewPercent;
   }
 
@@ -70,7 +70,7 @@ public class Restriction {
       rps = getConfigValue("tpm") / 60;
       double amplitude = getConfigValue("amplitude") / 60;
       int lambdaSec = (int) getConfigValue("lambdaSec");
-      this.skewPercent = (int) getConfigValue("skew");
+      this.skewPercent = getConfigValue("skew");
 
       if (rps > 0) {
         if (amplitude > 0 && lambdaSec > 0) {
