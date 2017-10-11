@@ -1,0 +1,26 @@
+##### General pattern below should be added to control rate of components
+# Name-of-a-component or id-of-instance or 
+#   [required] tpm: tuples per minute, uniformly distributed 
+#   [optional] amplitude: max variationr from tpm, e.g. if tpm=100, amplitude=10, then rate will vary between 90-110 
+#   [optional] lambdaSec: length of one wave. The rate variation is a sin curve
+#   [optional] container: last few characters of the container id
+
+
+# time varying spout rate
+"spout":
+  tpm: "6000"
+  amplitude: "1200"
+  lambdaSec: "600"
+
+# constant rate
+"bolt-1":
+  tpm: "2000"
+
+# controlling bolt in a specific container, for e.g. to simulate a slow container
+"bolt-2":
+  tpm: "1000"
+  container: "001"
+
+# controlling a specific instance, for e.g. to simulate a slow instance
+"100"
+  tpm: "1000"
